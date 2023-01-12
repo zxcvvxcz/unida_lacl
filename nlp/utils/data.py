@@ -830,14 +830,16 @@ def get_dataloaders_for_oda(tokenizer, root_path, task_name, seed, num_common_cl
 
 
 def get_dataloaders_for_oda_cl(tokenizer, root_path, task_name, seed, num_common_class, batch_size, max_length, span_mask_len=5, source=None, target=None, drop_last=False):
-    ## LOAD DATASETS ##        
-    train_data, train_unlabeled_data, val_data, test_data, source_test_data = load_full_dataset_cl(root_path, task_name, seed, num_common_class, source, target)
     
     # input keys
     coarse_label, fine_label, input_key = 'coarse_label', 'fine_label', 'text'
 
     if source is not None and target is not None:
         coarse_label, fine_label, input_key = 'label', 'label', 'sentence'
+        
+    ## LOAD DATASETS ##        
+    train_data, train_aug_data, train_unlabeled_data, val_data, test_data, source_test_data = load_full_dataset_cl(root_path, task_name, seed, num_common_class, source, target, input_key)
+    
 
     
     source_label_set = set(train_data['coarse_label'])
@@ -848,10 +850,10 @@ def get_dataloaders_for_oda_cl(tokenizer, root_path, task_name, seed, num_common
     # import pdb
     # pdb.set_trace()
     # assert len(common_classes) == num_common_class, f'ERROR GENERATING OPDA DATASET : {len(common_classes)} != {num_common_class}'
-
     print('Filter out source private samples...')
     # ODA : no source private samples, only common class samples
     train_data = train_data.filter(lambda sample : sample[coarse_label] in common_classes)
+    train_aug_data = train_aug_data.filter(lambda sample : sample[coarse_label] in common_classes)
     val_data = val_data.filter(lambda sample : sample[coarse_label] in common_classes)
     source_test_data = source_test_data.filter(lambda sample : sample[coarse_label] in common_classes)
 
@@ -1044,7 +1046,7 @@ def back_translate_batch(texts, model_en, model_foreign, beam=1, sampling_topk=5
         paraphrase_curr = list(map(str.lower, model_foreign.translate(model_en.translate(texts_to_paraphrase, beam, sampling=True, sampling_topk=sampling_topk),
                                                                         beam, sampling=True, sampling_topk=sampling_topk))) # for uncased model
         paraphrase_with_index = [x for x in zip(texts_to_paraphrase_index, paraphrase_curr)] # paraphrased texts with original index
-        breakpoint()
+
         texts_to_paraphrase_index = []
         texts_to_paraphrase = []
         for j, par in paraphrase_with_index:
@@ -1054,7 +1056,6 @@ def back_translate_batch(texts, model_en, model_foreign, beam=1, sampling_topk=5
             else: # output different to input, good to go
                 paraphrase_final[j] = par
         print(f'Iter {i}: {len(texts_to_paraphrase_index)} left...')
-    breakpoint()
         
     return paraphrase_final
 

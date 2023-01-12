@@ -428,8 +428,8 @@ def main(args, save_config):
             
             
             if results['accuracy'] >= best_acc:
-                if results['accuracy'] > best_acc:
-                    early_stop_count = 0
+                # if results['accuracy'] > best_acc:
+                early_stop_count = 0
                 best_acc = results['accuracy']
                 best_results = results
 

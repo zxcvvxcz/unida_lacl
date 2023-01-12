@@ -15,10 +15,9 @@ class HScore():
     def add_batch(self, predictions, references):
 
         batch_size = predictions.shape[0]
-
         for index in range(batch_size):
             # for torch.tensor
-            if 'datach' in dir(predictions):
+            if 'detach' in dir(predictions):
                 prediction = predictions[index].detach().cpu().numpy()
                 reference = references[index].detach().cpu().numpy()
             # for numpy.ndarray
@@ -49,7 +48,7 @@ class HScore():
         total_correct = per_class_correct.sum()
         total_samples = per_class_num.sum()
         total_accuracy = total_correct / total_samples * 100
-        breakpoint()
+
         return {
             'h_score' : h_score,
             'known_accuracy' : known_accuracy,

@@ -27,7 +27,7 @@ seeds='1234 2134 3412 4132'
 # CDA
 for seed in  $seeds; do
     for lr in $lrs; do
-        python nlp/dann_oda.py --config configs/nlp/dann-clinc-oda.yaml --lr $lr --seed $seed
+        python3 nlp/dann_oda.py --config configs/nlp/dann-clinc-oda.yaml --lr $lr --seed $seed
     done
 done
 

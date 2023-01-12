@@ -28,7 +28,7 @@ from models.lacl import *
 from utils.logging import logger_init, print_dict
 from utils.utils import seed_everything, parse_args, parse_args_adspt
 from utils.evaluation import HScore, Accuracy
-from utils.data import get_dataloaders_cl, ForeverDataIterator
+from utils.data import get_dataloaders_for_oda_cl, ForeverDataIterator
 
 cudnn.benchmark = True
 cudnn.deterministic = True
@@ -53,9 +53,19 @@ def cheating_test(model, dataloader, unknown_class, is_cda=False, metric_name='t
             test_batch = {k: v.cuda() for k, v in test_batch.items()}
             labels = test_batch['labels']
 
-            outputs, _ = model(**test_batch)
+            
+            b_dict = model(**test_batch)
+            pooled = b_dict['global_projection']
+            
+            norm_pooled = F.normalize(pooled, dim=-1)
 
-            weight, predictions = outputs['logits'].max(dim=-1).values, outputs['logits'].argmax(dim=-1)   
+            cosine_score = norm_pooled @ model.norm_bank.t()
+            cosine_score, cosine_idx = cosine_score.topk(k=model.lacl_config.cosine_top_k,dim=-1)
+            harmonic_weight = np.reciprocal([float(i) for i in range(1, 1+model.lacl_config.cosine_top_k)])
+            cosine_score = (cosine_score * torch.from_numpy(harmonic_weight).cuda()).sum(dim=-1)
+            
+            weight = cosine_score
+            predictions = model.label_bank[[cosine_idx.squeeze()]]
 
             # check for best threshold
             for index in range(num_thresholds):
@@ -226,9 +236,9 @@ def main(args, save_config):
     ## GET DATALOADER ##
     # TODO
     
-    train_dataloader, comb_train_dataloader, _, _, _ = get_dataloaders_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.train.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
+    train_dataloader, comb_train_dataloader, _, _, _ = get_dataloaders_for_oda_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.train.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
     # _, train_unlabeled_dataloader, _, _, _ = get_dataloaders_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.train.unlabeled_batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
-    _, _, eval_dataloader, test_dataloader, source_test_dataloader = get_dataloaders_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.test.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
+    _, _, eval_dataloader, test_dataloader, source_test_dataloader = get_dataloaders_for_oda_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.test.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
 
     # num_step_per_epoch = max(len(train_dataloader), len(train_unlabeled_dataloader))
     num_step_per_epoch = len(comb_train_dataloader)
@@ -409,8 +419,8 @@ def main(args, save_config):
             
             
             if results['accuracy'] >= best_acc:
-                if results['accuracy'] > best_acc:
-                    early_stop_count = 0
+                # if results['accuracy'] > best_acc:
+                early_stop_count = 0
                 best_acc = results['accuracy']
                 best_results = results
 
