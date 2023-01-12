@@ -26,7 +26,7 @@ from transformers import (
 
 from models.lacl import *
 from utils.logging import logger_init, print_dict
-from utils.utils import seed_everything, parse_args, parse_args_adspt
+from utils.utils import seed_everything, parse_args
 from utils.evaluation import HScore, Accuracy
 from utils.data import get_dataloaders_for_oda_cl, ForeverDataIterator
 
@@ -185,9 +185,6 @@ def eval_with_threshold(model, dataloader, is_cda, unknown_class, threshold):
             harmonic_weight = np.reciprocal([float(i) for i in range(1, 1+model.lacl_config.cosine_top_k)])
             cosine_score = (cosine_score * torch.from_numpy(harmonic_weight).cuda()).sum(dim=-1)
             
-            # total_len += len(labels)
-            # cosine_correct += sum(model.label_bank[[cosine_idx.squeeze()]] ==labels)
-
             # if is_cda:
             #     predictions[weight <= threshold] = unknown_class
             
@@ -198,9 +195,6 @@ def eval_with_threshold(model, dataloader, is_cda, unknown_class, threshold):
     
     results = metric.compute()
     results['threshold'] = threshold
-    # cosine_ind_acc = float(cosine_correct/total_len) * 100
-    # results = {}
-    # results['accuracy'] = cosine_ind_acc
     return results
 
 def main(args, save_config):
@@ -233,16 +227,12 @@ def main(args, save_config):
     ## INIT TOKENIZER ##
     tokenizer = AutoTokenizer.from_pretrained(args.model.model_name_or_path)
 
-    ## GET DATALOADER ##
-    # TODO
-    
+    ## GET DATALOADER ##    
     train_dataloader, comb_train_dataloader, _, _, _ = get_dataloaders_for_oda_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.train.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
     # _, train_unlabeled_dataloader, _, _, _ = get_dataloaders_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.train.unlabeled_batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
     _, _, eval_dataloader, test_dataloader, source_test_dataloader = get_dataloaders_for_oda_cl(tokenizer=tokenizer, root_path=args.dataset.data_path, task_name=args.dataset.name, seed=args.train.seed, num_common_class=args.dataset.num_common_class, batch_size=args.test.batch_size, max_length=args.train.max_length, source=source_domain, target=target_domain)
 
-    # num_step_per_epoch = max(len(train_dataloader), len(train_unlabeled_dataloader))
     num_step_per_epoch = len(comb_train_dataloader)
-    # num_step_per_epoch = 40
     total_step = args.train.num_train_epochs * num_step_per_epoch
     logger.info(f'Total epoch {args.train.num_train_epochs}, steps per epoch {num_step_per_epoch}, total step {total_step}')
 
@@ -257,8 +247,6 @@ def main(args, save_config):
         args.model.model_name_or_path,
         config=config,
         args=args,
-        # output_attentions=True,
-        # output_hidden_states=True
     )
     model.cuda()
     end_time = time.time()
@@ -348,7 +336,6 @@ def main(args, save_config):
                         print('Sanity check for data pair...')
                         print(f'Batch1: {tokenizer.batch_decode(source_batch1["input_ids"], skip_special_tokens=True)}')
                         print(f'Batch2: {tokenizer.batch_decode(source_batch2["input_ids"], skip_special_tokens=True)}')
-                    # breakpoint()
                     ## target to cuda
                     # target_batch = next(target_iter)
                     # target_batch = {k: v.cuda() for k, v in target_batch.items()}
@@ -362,7 +349,6 @@ def main(args, save_config):
                     ## source 
                     source_output1 = model(**source_batch1)
                     source_output2 = model(**source_batch2)
-                    # breakpoint()
                     ## target 
                     # _, target_disc_output = model(**target_batch)
                     
@@ -393,10 +379,6 @@ def main(args, save_config):
                     optimizer.step()
                     lr_scheduler.step()
                     
-                    # if global_step == 1:
-                    #     print(f'{source_output=}, source label:{source_label.view(-1)} {ce_loss=}, plm_loss={ce_loss * args.train.lr/args.train.plm_lr - adv_loss}')
-                    #     print(f'{disc_outputs=}, disc label:{disc_labels} {adv_loss=}')
-            
                     # write to tensorboard
                     writer.add_scalar('train/loss_cl_gp', loss_cl_gp, global_step)
                     writer.add_scalar('train/loss_reg', loss_reg, global_step)
@@ -445,9 +427,6 @@ def main(args, save_config):
         end_time = time.time()
         logger.info(f'Done training full step. Total time : {end_time-start_time}')
 
-        # logger.info('Saving last model...')
-        # torch.save(model.state_dict(), os.path.join(log_dir, 'last.pth'))
-        # logger.info('Done saving...')
         # skip evaluation with low accuracy
         if best_results['accuracy'] < 85:
             logger.info(f'Low total accuracy {best_results["accuracy"]}. Skip testing.')
@@ -491,6 +470,6 @@ def main(args, save_config):
 
 if __name__ == "__main__":
         
-    args, save_config = parse_args_adspt()
+    args, save_config = parse_args()
     main(args, save_config)
 

@@ -264,6 +264,7 @@ def load_dataset_for_da_cl(
     target_task='dvd', 
     num_unlabeled=4000,
     seed=1234,
+    input_key='sentence',
 ):
     
     source_train, source_train_aug, source_eval, source_test, source_unlabeled = load_single_dataset_cl(source_benchmark, source_task, target_task, num_unlabeled, seed, True, input_key)
