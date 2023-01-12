@@ -1,0 +1,23 @@
+easydict
+easydl
+tensorboardX
+tqdm
+transformers==4.20.1
+datasets
+# yaml==5.4.1
+scikit-learn
+
+# from uniot repo
+faiss-gpu
+pandas==1.3.5
+POT==0.8.1.0
+
+# for back translation
+bitarray 
+fastBPE 
+hydra-core 
+omegaconf 
+regex 
+requests 
+sacremoses 
+subword_nmt

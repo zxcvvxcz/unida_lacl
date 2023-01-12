@@ -1,0 +1,38 @@
+dataset:
+  name: amazon
+  # root_path: /home/heyjoonkim/Universal-Domain-Adaptation/data/ # /path/to/dataset/root
+  data_path: /home/pch330/data # /path/to/dataset/root
+  model_path: /home/pch330/data/model_data # /path/to/dataset/root
+  num_common_class: 2
+  num_source_class: 2
+  source_domain: books
+  target_domain: dvd
+
+model:
+  model_name_or_path: roberta-base
+
+train:
+  # train: False              # train model <-> only test model
+  train: True                 # train model <-> only test model
+  max_length: 512             # max length for tokenizer
+  n_tokens: 3
+  batch_size: 2        
+  unlabeled_batch_size: 5     # target domain train set batch size 
+  num_train_epochs: 10        # total training epoch 
+  lr: 1.0e-5
+  plm_lr: 2.0e-5
+  domain_lr: 5.0e-5
+  class_ratio: 1
+  lr_scheduler_type: linear   # scheduler type
+  early_stop: 3               # early stopping epoch
+  seed: 1234                  # random seed
+  loss_coeff:
+test:
+  min_threshold: 0.0
+  max_threshold: 1.0
+  step: 0.005
+  threshold: 0.5
+  batch_size: 64
+
+log:
+  output_dir: /home/pch330/data/universal_domain_adaptation
